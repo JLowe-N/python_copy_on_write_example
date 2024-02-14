@@ -30,15 +30,46 @@ This only appears to work in Debian/Ubuntu, but not Mac.
 
 ## Results
 
-Python 3.9.7 / Debian Container
-
 I found that smem was the easiest to analyze.  USS - Unique Set Size, displays the memory unique to a process.
 If USS size grows after forking without additional intentional object creation in the script, copy on write behavior
 caused by Python garbage collection would be probable.
 
+Debian has a package `smem` which can help.
 
-`smem -t |egrep "RSS|test_shm_memory.py"`
-  PID User     Command                         Swap      USS      PSS      RSS
-45415 esp      grep -E --color=auto RSS|te        0      360      449     2548
-45306 esp      python3 test_shm_memory.py         0     1560   400802   803200 # Child
-45305 esp      python3 test_shm_memory.py         0     1604   400987   805352 # Parent
+The test_shm_memory.py script using `psutil` will print out USS with print statements during execution.
+
+Below are results using Python 3.9.7 on MacOS:
+
+### Default Python behavior
+`python test_shm_memory.py --no-freeze --size 1`
+```
+After Fork Process # 32409 before gc:
+ pfullmem(rss=79937536, vms=419123167232, pfaults=5993, pageins=807, uss=2097152)
+After Fork Process # 42884 before gc:
+ pfullmem(rss=6373376, vms=419123167232, pfaults=571, pageins=0, uss=4571136)
+
+Garbage Collection!!!
+
+After Fork Process # 42884 after gc:
+ pfullmem(rss=56098816, vms=419123167232, pfaults=4988, pageins=0, uss=34193408)
+After Fork Process # 32409 after gc:
+ pfullmem(rss=74694656, vms=419123167232, pfaults=7962, pageins=807, uss=34045952)
+```
+Key in on uss - unique set size. We want this to be small.  
+We can see gc.collect (run several times), actually increases uss (copy on write).
+
+### Python behavior when using gc.disable(), gc.freeze(), gc.enable() before fork
+`python test_shm_memory.py --freeze --size 1`
+```
+After Fork Process # 32409 before gc:
+ pfullmem(rss=80789504, vms=419793207296, pfaults=6052, pageins=806, uss=2048000)
+After Fork Process # 43293 before gc:
+ pfullmem(rss=6422528, vms=419793207296, pfaults=580, pageins=0, uss=4014080)
+
+Garbage Collection!!!! Frozen objects before fork
+
+After Fork Process # 43293 after gc:
+ pfullmem(rss=3948544, vms=419793207296, pfaults=897, pageins=0, uss=2113536)
+After Fork Process # 32409 after gc:
+ pfullmem(rss=19529728, vms=419793207296, pfaults=6323, pageins=806, uss=1884160)
+ ```
