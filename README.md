@@ -73,3 +73,8 @@ After Fork Process # 43293 after gc:
 After Fork Process # 32409 after gc:
  pfullmem(rss=19529728, vms=419793207296, pfaults=6323, pageins=806, uss=1884160)
  ```
+
+ ### Conclusion
+
+ Using gc.freeze() in Python 3.9.7 reduced Unique Set Size from 34MB in the default Python execution down to 2MB in the frozen execution.
+ Copy on write memory was reduced by 95%.
